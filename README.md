@@ -7,7 +7,7 @@ Functioning Go: my environment had go 1.17
 # Run the code
 Both
 ```
-$ go run main.go
+$ go run src/main.go
 $ make run
 ```
 Will open up a prompt that accepts the following commands:

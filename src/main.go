@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"in-mem-db/db"
+	"in-mem-db/src/db"
 )
 
 func main() {

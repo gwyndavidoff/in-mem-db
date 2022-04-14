@@ -146,8 +146,6 @@ func (d *DB) transactionSet(key, value string, rollback bool) {
 	countNode.key = n.value
 	countNode.value = countNode.value + 1
 	d.Counts.ReplaceOrInsert(countNode)
-	d.printDB()
-	d.printCount()
 }
 
 // Get retrieves the matching value for the given key from the Database or "NULL"
