@@ -1,6 +1,14 @@
 # in-mem-db In Memory Database
 The project is intended to be easy to load and run. Save it to a folder on your computer, and navigate to its location in a Terminal.
 
+I have provided both a zip file of the code (just in case, because I foolishly made the repo private) and this repo.
+
+If:
+```
+$ git clone git@github.com:gwyndavidoff/in-mem-db.git
+```
+does not work then please download the zip file and use your preferred method to unzip.
+
 # Requirements
 Functioning Go: my environment had go 1.17
 
