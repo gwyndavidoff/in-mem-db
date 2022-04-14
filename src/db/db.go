@@ -68,19 +68,19 @@ func (d *DB) Handle(input string) {
 		d.Set(args[1], args[2])
 	} else if strings.EqualFold(command, "GET") {
 		if len(args) < 2 {
-			fmt.Println("GET requires 2 string inputs")
+			fmt.Println("GET requires 1 string inputs")
 			return
 		}
 		fmt.Println(d.Get(args[1]))
 	} else if strings.EqualFold(command, "DELETE") {
 		if len(args) < 2 {
-			fmt.Println("DELETE requires 2 string inputs")
+			fmt.Println("DELETE requires 1 string inputs")
 			return
 		}
 		d.Delete(args[1])
 	} else if strings.EqualFold(command, "COUNT") {
-		if len(args) < 3 {
-			fmt.Println("COUNT requires 2 string inputs")
+		if len(args) < 2 {
+			fmt.Println("COUNT requires 1 string inputs")
 			return
 		}
 		fmt.Println(d.Count(args[1]))
