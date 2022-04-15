@@ -54,7 +54,7 @@ func Init() *DB {
 // Handle uses a DB instance and an input string to perform all possible functions
 // It's a bit naive at the moment, if an invalid command is issued it's ignored
 // And if the number of args are greater than expected, they're ignored
-// Only too few args are checked and return an error
+// Only too few args are checked and return an error, Also, it is not case sensitive.
 func (d *DB) Handle(input string) {
 	args := strings.Split(input, " ")
 	command := args[0]
@@ -62,25 +62,25 @@ func (d *DB) Handle(input string) {
 		os.Exit(0)
 	} else if strings.EqualFold(command, "SET") {
 		if len(args) < 3 {
-			fmt.Println("SET requires 2 string inputs")
+			fmt.Printf("SET requires 2 string inputs\n")
 			return
 		}
 		d.Set(args[1], args[2])
 	} else if strings.EqualFold(command, "GET") {
 		if len(args) < 2 {
-			fmt.Println("GET requires 1 string inputs")
+			fmt.Printf("GET requires 1 string inputs\n")
 			return
 		}
-		fmt.Println(d.Get(args[1]))
+		fmt.Printf("%v\n", d.Get(args[1]))
 	} else if strings.EqualFold(command, "DELETE") {
 		if len(args) < 2 {
-			fmt.Println("DELETE requires 1 string inputs")
+			fmt.Printf("DELETE requires 1 string inputs\n")
 			return
 		}
 		d.Delete(args[1])
 	} else if strings.EqualFold(command, "COUNT") {
 		if len(args) < 2 {
-			fmt.Println("COUNT requires 1 string inputs")
+			fmt.Printf("COUNT requires 1 string inputs\n")
 			return
 		}
 		fmt.Println(d.Count(args[1]))
@@ -93,6 +93,7 @@ func (d *DB) Handle(input string) {
 	}
 }
 
+// A private function that processes the commands sent by a transaction rollback
 func (d *DB) transactionRollbackHandle(input string) {
 	args := strings.Split(input, " ")
 	command := args[0]
@@ -103,13 +104,17 @@ func (d *DB) transactionRollbackHandle(input string) {
 	}
 }
 
+// Set adds the new key/value pair to the Database
+// increments the counter for that value, and
+// decrements the counter if there was a previous value
 func (d *DB) Set(key, value string) {
 	d.transactionSet(key, value, false)
 }
 
-// Set adds the new key/value pair to the Database
-// increments the counter for that value, and
-// decrements the counter if there was a previous value
+// A private version of Set so that during a transaction rollback
+// transaction commands aren't added.
+// rollback(bool) True: don't save undo command.
+// False: save undo command (if there's an open transaction)
 func (d *DB) transactionSet(key, value string, rollback bool) {
 	n := Node{
 		key:   key,
@@ -120,10 +125,12 @@ func (d *DB) transactionSet(key, value string, rollback bool) {
 		countOldNode.value--
 		if countOldNode.value == 0 {
 			d.Counts.Delete(countOldNode)
+		} else {
+			d.Counts.ReplaceOrInsert(countOldNode)
 		}
-		d.Counts.ReplaceOrInsert(countOldNode)
 
 		// If there's a transaction, store the "undo" - this is for a replace so it SETs the old key/value
+		// Add it to the beginning of the list so it's performed in reverse order
 		if len(d.Transactions) > 0 && !rollback {
 			original := oldNode.(Node)
 			lastTransaction := d.Transactions[len(d.Transactions)-1]
@@ -132,19 +139,21 @@ func (d *DB) transactionSet(key, value string, rollback bool) {
 		}
 	} else {
 		// If there's a transaction, store the "undo" - this is for an insert, so it DELETEs the new key
+		// Add it to the beginning of the list so it's performed in reverse order
 		if len(d.Transactions) > 0 && !rollback {
 			lastTransaction := d.Transactions[len(d.Transactions)-1]
 			lastTransaction.Commands = append([]string{fmt.Sprintf("DELETE %s", key)}, lastTransaction.Commands...)
 			d.Transactions[len(d.Transactions)-1] = lastTransaction
 		}
 	}
+	// Retrieve the current count of the value just saved
 	countNode := CountNode{}
 	if cn := d.Counts.Get(CountNode{key: n.value}); cn != nil {
 		countNode = cn.(CountNode)
 	}
-	//Because int is initialized at 0 we can just set the key and ++ the value and then save, and not check
+	//Because int is initialized at 0 we can just set the key and ++ the value and then save, and not check for 0
 	countNode.key = n.value
-	countNode.value = countNode.value + 1
+	countNode.value++
 	d.Counts.ReplaceOrInsert(countNode)
 }
 
@@ -156,12 +165,16 @@ func (d *DB) Get(key string) string {
 	return "NULL"
 }
 
+// Delete removes the key/value pair from the Database if it exists
+// and decrements the count for the value, removing it from Counts ir it's now 0
 func (d *DB) Delete(key string) {
 	d.transactionDelete(key, false)
 }
 
-// Delete removes the key/value pair from the Database if it exists
-// and decrements the count for the value, removing it from Counts ir it's now 0
+// A private version of Set so that during a transaction rollback
+// transaction commands aren't added.
+// rollback(bool) True: don't save undo command.
+// False: save undo command (if there's an open transaction)
 func (d *DB) transactionDelete(key string, rollback bool) {
 	deleted := d.Database.Delete(Node{key: key})
 	if deleted == nil {
@@ -195,14 +208,18 @@ func (d *DB) Count(value string) int {
 	return 0
 }
 
+// Begin adds a new Transaction list item for storing undo Commands
 func (d *DB) Begin() {
 	d.Transactions = append(d.Transactions, Transaction{Commands: []string{}})
 }
 
+// Commit discards all open Transactions so that they are "permanent"
 func (d *DB) Commit() {
 	d.Transactions = nil
 }
 
+// Rollback takes the latest Transaction, performs the undo commands
+// And then discards the rolled back Transaction
 func (d *DB) Rollback() {
 	if len(d.Transactions) == 0 {
 		return
@@ -214,6 +231,7 @@ func (d *DB) Rollback() {
 	d.Transactions = d.Transactions[0 : len(d.Transactions)-1]
 }
 
+// A private function primarily used to help while making changes and testing
 func (d *DB) printTransactions() {
 	fmt.Println(d.Transactions)
 }

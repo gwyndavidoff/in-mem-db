@@ -30,6 +30,12 @@ $ ROLLBACK
 $ COMMIT
 ```
 
+You can also build before you run:
+```
+$ go build src/main.go
+$ ./main
+```
+
 # Tests
 There is a very small test suite that covers a couple of my initial sanity checks as well as the Examples from the spec. Both
 ```
@@ -48,6 +54,6 @@ I used the [btree] (https://pkg.go.dev/github.com/google/btree) library provided
 
 In terms of the requirement not to double the db mem usage for every transaction, I wanted to note that btree actually does not fully copy the tree, and in fact is a lazy copy, but it seemed like that still wasn't in the spirit of what I understood the requirement to be about so I did not use it and instead kept lists of Rollback calls (also in a worst case if every entry in the db were part of the transaction it would eventually double the memory usage).
 
-While I doubt the rollback call list is an ideal implementation (I'm pretty sure it's n log n or worse), I had considered doing something that would maintain the potential Function calls during a transaction and then use those to make the changes on COMMIT and be available for searching during the transaction, but that would have slowed down retrieval while a transaction was open, so I opted for a more durable change to the saved data and a simple set of saved rollback commands. To improve it to at worst n log n I could change the set of commands to only contain at most one per key.
+While I doubt the rollback call list is an ideal implementation (I'm pretty sure it's n log n or worse), I had considered doing something that would maintain the potential function calls during a transaction and then use those to make the changes on COMMIT and be available for searching during the transaction, but that would have slowed down retrieval while a transaction was open, so I opted for a more durable change to the saved data and a simple set of saved rollback commands. To improve it to at worst n log n I could change the set of commands to only contain at most one per key, though I'd need to double check that doesn't reduce performance of the SET and DELETE functions. On the good side, I believe COMMIT is O(1).
 
 Something else that was a bit of a tradeoff. I maintained a second tree of value counts. That allowed for the O log n access for the COUNT function, but in a worst case scenario would mean that the trees could be the same size.
