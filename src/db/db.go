@@ -176,6 +176,9 @@ func (d *DB) Delete(key string) {
 // rollback(bool) True: don't save undo command.
 // False: save undo command (if there's an open transaction)
 func (d *DB) transactionDelete(key string, rollback bool) {
+	if d.Database.Len() == 0 {
+		return
+	}
 	deleted := d.Database.Delete(Node{key: key})
 	if deleted == nil {
 		return
